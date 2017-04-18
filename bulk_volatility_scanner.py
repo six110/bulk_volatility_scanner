@@ -48,57 +48,58 @@ ALL_PROFILES = [
     'WinXPSP3x86']
 
 BASE_PLUGINS = [
-    'pslist',
-    'pstree',
-    'psscan',
-    'dlllist',
-    'handles',
-    'getsids',
+    'apihooks',
+    'atomscan',
+    'auditpol',
+    'callbacks',
+    'clipboard',
     'cmdscan',
     'consoles',
-    'privs',
-    'envars',
-    'verinfo',
-    'enumfunc',
-    'memmap',
-    'vadinfo',
-    'vadwalk',
-    'vadtree',
-    'iehistory',
-    'modules',
-    'modscan',
-    'ssdt',
+    'deskscan',
+    'devicetree',
+    'dlllist',
     'driverscan',
+    'enumfunc',
+    'envars',
+    'eventhooks',
     'filescan',
+    'gahti',
+    'gditimers',
+    'gdt',
+    'getsids',
+    'handles',
+    'hivelist',
+    'hivescan',
+    'idt',
+    'iehistory',
+    'ldrmodules',
+    'malfind',
+    'memmap',
+    'messagehooks',
+    'modscan',
+    'modules',
     'mutantscan',
+    'privs',
+    'pslist',
+    'psscan',
+    'pstree',
+    'psxview',
+    'sessions',
+    'ssdt',
+    'svcscan',
     'symlinkscan',
     'thrdscan',
+    'threads',
+    'timers'
     'unloadedmodules',
-    'hivescan',
-    'hivelist',
-    'psxview',
-    'malfind',
-    'sessions',
-    'wndscan',
-    'deskscan',
-    'atomscan',
-    'clipboard',
-    'eventhooks',
-    'gahti',
-    'messagehooks',
     'userhandles',
-    'gditimers',
+    'vadinfo',
+    'vadtree',
+    'vadwalk',
+    'verinfo',
     'windows',
     'wintree',
-    'svcscan',
-    'ldrmodules',
-    'apihooks',
-    'idt',
-    'gdt',
-    'threads',
-    'callbacks',
-    'devicetree',
-    'timers']
+    'wndscan',]
 
 XP2003_PLUGINS = [
     'evtlogs',
@@ -180,23 +181,26 @@ class MemoryImage(object):
 
 def generate_future_tasks(image):
     for plugin in image.valid_plugins:
-        if len(plugin.split(' ')) > 1:
-            plugin_name = plugin.split(' ')[0].strip('\n')
-            plugin_flags = [arg.strip('\n') for arg in plugin.split(' ')[1:]]
-        else:
-            plugin_name = plugin.strip('\n')
-            plugin_flags = []
+        try:
+            if len(plugin.split(' ')) > 1:
+                plugin_name = plugin.split(' ')[0].strip('\n')
+                plugin_flags = [arg.strip('\n') for arg in plugin.split(' ')[1:]]
+            else:
+                plugin_name = plugin.strip('\n')
+                plugin_flags = []
 
-        output_filename = plugin_name + '_' + image.basename + '.txt'
-        output_path = os.path.join(image.output_directory, output_filename)
+            output_filename = plugin_name + '_' + image.basename + '.txt'
+            output_path = os.path.join(image.output_directory, output_filename)
 
-        commandline = [invocation, '-f', image.abspath, '--profile=' + profile, '--kdbg=' + image.kdbg, plugin_name]
-        commandline += plugin_flags
+            commandline = [invocation, '-f', image.abspath, '--profile=' + profile, '--kdbg=' + image.kdbg, plugin_name]
+            commandline += plugin_flags
 
-        yield {'image_basename': image.basename,
-               'plugin_name': plugin_name,
-               'commandline': commandline,
-               'output_path': output_path}
+            yield {'image_basename': image.basename,
+                   'plugin_name': plugin_name,
+                   'commandline': commandline,
+                   'output_path': output_path}
+        except Exception as e:
+            logging.error('Failed to upload to ftp: '+ str(e))
 
 
 def execute_plugin(command):
@@ -204,7 +208,7 @@ def execute_plugin(command):
                                                     command['plugin_name']))
 
     with open(command['output_path'], 'w') as output:
-        subprocess.call(command['commandline'], stderr=subprocess.STDOUT, stdout=output)
+        subprocess.call(command['commandline'], stderr=output, stdout=output)
 
     logging.info('[{0}] Plugin {1} output saved to {2}'.format(command['image_basename'],
                                                                command['plugin_name'], command['output_path']))
