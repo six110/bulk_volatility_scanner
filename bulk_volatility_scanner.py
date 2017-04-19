@@ -73,13 +73,13 @@ BASE_PLUGINS = [
     'crashinfo',
     'deskscan',
     'devicetree',
-    'dlldump',
+    # 'dlldump', #TODO arg
     'dlllist',
     'driverirp',
     'drivermodule',
     'driverscan',
-    'dumpcerts',
-    'dumpfiles',
+    # 'dumpcerts', #TODO arg
+    # 'dumpfiles', #TODO arg
     'dumpregistry',
     'editbox',
     'envars',
@@ -88,7 +88,7 @@ BASE_PLUGINS = [
     'filescan',
     'gahti',
     'gditimers',
-    'gdt',
+    # 'gdt', #TODO profile
     # 'getservicesids',
     'getsids',
     'handles',
@@ -99,35 +99,35 @@ BASE_PLUGINS = [
     'hivescan',
     'hpakextract',
     'hpakinfo',
-    'idt',
+    # 'idt', #TODO profile
     'iehistory',
     'imagecopy',
-    'imageinfo',
-    'impscan',
+    # 'imageinfo',
+    # 'impscan', #TODO arg
     'joblinks',
     'kdbgscan',
     'kpcrscan',
     'ldrmodules',
     'lsadump',
     'machoinfo',
-    'malfin',
+    'malfind',
     'mbrparser',
-    'memdump',
-    'memmap',
+    # 'memdump', #TODO arg
+    # 'memmap', #TODO arg
     'messagehooks',
     'mftparser',
-    'moddump',
+    #'moddump', #TODO arg
     'modscan',
     'modules',
     'multiscan',
     'mutantscan',
     'notepad',
     'objtypescan',
-    'patcher',
+    # 'patcher',  #TODO arg
     'poolpeek',
     'printkey',
     'privs',
-    'procdump',
+    #'procdump', #TODO arg
     'pslist',
     'psscan',
     'pstree',
@@ -143,17 +143,17 @@ BASE_PLUGINS = [
     # 'sockets',
     # 'sockscan',
     'ssdt',
-    'strings',
+    # 'strings', #TODO arg
     'svcscan',
     'symlinkscan',
     'thrdscan',
     'threads',
-    'timeline',
+    'timeliner',
     'timers',
     'truecryptmaster',
     'truecryptpassphrase',
     'truecryptsummary',
-    'unloaded',
+    'unloadedmodules',
     # 'userassist',
     'userhandles',
     'vaddump',
@@ -162,12 +162,13 @@ BASE_PLUGINS = [
     'vadwalk',
     'vboxinfo',
     'verinfo',
-    'vmwareinfo',
+    # 'vmwareinfo',#TODO  profile
     'volshell',
     'windows',
     'wintree',
     'wndscan',
-    'yarascan']
+    # 'yarascan' #TODO arg
+    ]
 
 XP2003_PLUGINS = [
     'connections',
@@ -177,7 +178,7 @@ XP2003_PLUGINS = [
     'sockscan']
 
 VISTA_WIN2008_WIN7_PLUGINS = [
-    'getservicesids'
+    'getservicesids',
     'netscan',
     'shellbags',
     'shimcache',
@@ -186,6 +187,7 @@ VISTA_WIN2008_WIN7_PLUGINS = [
 
 class MemoryImage(object):
     def __init__(self, invocation, image_path, profile, kdbg, master_output_directory, plugins_list):
+        global auto_profiles
         self.invocation = invocation
         self.basename = os.path.basename(image_path)
         self.abspath = os.path.abspath(image_path)
@@ -246,6 +248,7 @@ class MemoryImage(object):
         for plugin in self.valid_plugins:
             logging.info('[{0}] Queuing plugin: {1}'.format(self.basename, plugin.strip('\n')))
 
+no_json_support = ['pstree', 'wndscan']
 
 def generate_future_tasks(image):
     for plugin in image.valid_plugins:
@@ -257,11 +260,13 @@ def generate_future_tasks(image):
                 plugin_name = plugin.strip('\n')
                 plugin_flags = []
 
-            output_filename = plugin_name + '_' + image.basename + '.txt'
+            output_filename = '{}_{}.json'.format(plugin_name, image.basename)
             output_path = os.path.join(image.output_directory, output_filename)
 
-            commandline = [invocation, '-f', image.abspath, '--profile=' + profile, '--kdbg=' + image.kdbg, plugin_name,
-                           "--output=json"]
+            commandline = [invocation, '-f', image.abspath, '--profile=' + image.profile, '--kdbg=' + image.kdbg,
+                           plugin_name]
+            if plugin_name not in no_json_support:  # JSON output for xxx has not yet been implemented
+                commandline.append("--output=json")
             commandline += plugin_flags
 
             yield {'image_basename': image.basename,
@@ -288,9 +293,9 @@ def execute_plugin(command):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Run all available Volatility plugins on a target image file.',
                                      epilog='''The first suggested profile will be automatically selected.
-			All available plugins will be selected for the suggested profile.
-			If the output directory does not exist, it will be created.
-			The output files with follow a $plugin_$filename format.''')
+                                        All available plugins will be selected for the suggested profile.
+                                        If the output directory does not exist, it will be created.
+                                        The output files with follow a $plugin_$filename format.''')
     parser.add_argument('--invocation',
                         help='Provide the desired invocation to execute Volatility. Defaults to "vol.py".')
     parser.add_argument('--readlist',
@@ -305,6 +310,7 @@ if __name__ == '__main__':
         invocation = args.invocation
     else:
         invocation = '/usr/share/volatility/vol.py'
+        invocation = '/home/simo/Downloads/volatility_2.6_lin64_standalone/volatility_2.6_lin64_standalone'
 
     master_output_directory = os.path.abspath(args.output_directory)
     if not os.path.exists(master_output_directory):
