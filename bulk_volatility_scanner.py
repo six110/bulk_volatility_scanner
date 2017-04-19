@@ -1,3 +1,4 @@
+from elasticsearch import Elasticsearch
 import argparse
 import logging
 import os
@@ -7,8 +8,15 @@ import subprocess
 import sys
 import time
 
-logging.basicConfig(level=logging.DEBUG,
-                    format='%(asctime)s - %(levelname)s - %(message)s')
+root = logging.getLogger()
+root.setLevel(logging.DEBUG)
+
+ch = logging.StreamHandler(sys.stdout)
+ch.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+ch.setFormatter(formatter)
+root.addHandler(ch)
+
 
 ALL_PROFILES = [
     'VistaSP0x64',
@@ -49,71 +57,131 @@ ALL_PROFILES = [
 
 BASE_PLUGINS = [
     'apihooks',
+    'atoms',
     'atomscan',
     'auditpol',
+    'bigpools',
+    'bioskbd',
+    'cachedump',
     'callbacks',
     'clipboard',
+    'cmdline',
     'cmdscan',
+    # 'connections',
+    # 'connscan',
     'consoles',
+    'crashinfo',
     'deskscan',
     'devicetree',
+    'dlldump',
     'dlllist',
+    'driverirp',
+    'drivermodule',
     'driverscan',
-    'enumfunc',
+    'dumpcerts',
+    'dumpfiles',
+    'dumpregistry',
+    'editbox',
     'envars',
     'eventhooks',
+    # 'evtlogs',
     'filescan',
     'gahti',
     'gditimers',
     'gdt',
+    # 'getservicesids',
     'getsids',
     'handles',
+    'hashdump',
+    'hibinfo',
+    'hivedump',
     'hivelist',
     'hivescan',
+    'hpakextract',
+    'hpakinfo',
     'idt',
     'iehistory',
+    'imagecopy',
+    'imageinfo',
+    'impscan',
+    'joblinks',
+    'kdbgscan',
+    'kpcrscan',
     'ldrmodules',
-    'malfind',
+    'lsadump',
+    'machoinfo',
+    'malfin',
+    'mbrparser',
+    'memdump',
     'memmap',
     'messagehooks',
+    'mftparser',
+    'moddump',
     'modscan',
     'modules',
+    'multiscan',
     'mutantscan',
+    'notepad',
+    'objtypescan',
+    'patcher',
+    'poolpeek',
+    'printkey',
     'privs',
+    'procdump',
     'pslist',
     'psscan',
     'pstree',
     'psxview',
+    'qemuinfo',
+    'raw2dmp',
+    'screenshot',
+    'servicediff',
     'sessions',
+    # 'shellbags',
+    'shimcache',
+    'shutdowntime',
+    # 'sockets',
+    # 'sockscan',
     'ssdt',
+    'strings',
     'svcscan',
     'symlinkscan',
     'thrdscan',
     'threads',
-    'timers'
-    'unloadedmodules',
+    'timeline',
+    'timers',
+    'truecryptmaster',
+    'truecryptpassphrase',
+    'truecryptsummary',
+    'unloaded',
+    # 'userassist',
     'userhandles',
+    'vaddump',
     'vadinfo',
     'vadtree',
     'vadwalk',
+    'vboxinfo',
     'verinfo',
+    'vmwareinfo',
+    'volshell',
     'windows',
     'wintree',
-    'wndscan',]
+    'wndscan',
+    'yarascan']
 
 XP2003_PLUGINS = [
-    'evtlogs',
     'connections',
     'connscan',
+    'evtlogs',
     'sockets',
     'sockscan']
 
 VISTA_WIN2008_WIN7_PLUGINS = [
+    'getservicesids'
     'netscan',
-    'userassist',
     'shellbags',
     'shimcache',
-    'getservicesids']
+    'userassist']
 
 
 class MemoryImage(object):
@@ -192,7 +260,8 @@ def generate_future_tasks(image):
             output_filename = plugin_name + '_' + image.basename + '.txt'
             output_path = os.path.join(image.output_directory, output_filename)
 
-            commandline = [invocation, '-f', image.abspath, '--profile=' + profile, '--kdbg=' + image.kdbg, plugin_name]
+            commandline = [invocation, '-f', image.abspath, '--profile=' + profile, '--kdbg=' + image.kdbg, plugin_name,
+                           "--output=json"]
             commandline += plugin_flags
 
             yield {'image_basename': image.basename,
@@ -200,7 +269,7 @@ def generate_future_tasks(image):
                    'commandline': commandline,
                    'output_path': output_path}
         except Exception as e:
-            logging.error('Failed to upload to ftp: '+ str(e))
+            logging.error('Plugin {0} fail with error: {1}'.format(plugin_name, str(e)))
 
 
 def execute_plugin(command):
@@ -212,6 +281,8 @@ def execute_plugin(command):
 
     logging.info('[{0}] Plugin {1} output saved to {2}'.format(command['image_basename'],
                                                                command['plugin_name'], command['output_path']))
+
+# 172.30.230.76 : 9002
 
 
 if __name__ == '__main__':
@@ -252,8 +323,7 @@ if __name__ == '__main__':
         tasks.extend([task for task in generate_future_tasks(image)])
 
     while True:
-        logging.debug('Active Workers: {0}, Pending Tasks: {1}'.format(
-            len(workers), len(tasks)))
+        logging.debug('Active Workers: {0}, Pending Tasks: {1}'.format(len(workers), len(tasks)))
 
         if len(tasks) == 0 and len(workers) == 0:
             # If there are no more pending tasks and all
